@@ -1,4 +1,5 @@
 import type { AgentConfig } from '@mastra/core/agent';
+import type { Mastra } from '@mastra/core/mastra';
 import type { ObservationalMemoryModelSettings } from '@mastra/core/memory';
 import type { MemoryStorage } from '@mastra/core/storage';
 import type { ModelByInputTokens } from './model-by-input-tokens';
@@ -848,6 +849,14 @@ export interface ObservationalMemoryConfig {
   shareTokenBudget?: boolean;
 
   /**
+   * When true, inserts temporal-gap reminder markers before new user messages after
+   * significant inactivity.
+   *
+   * @default false
+   */
+  temporalMarkers?: boolean;
+
+  /**
    * Time before buffered observations or buffered reflections are force-activated after inactivity.
    * Accepts milliseconds as a number or a duration string like `"5m"` or `"1hr"`.
    * When the gap between the current time and the last assistant message part's `createdAt`
@@ -861,6 +870,9 @@ export interface ObservationalMemoryConfig {
    * This helps flush prompt-cache-specific memory before switching to a different model.
    */
   activateOnProviderChange?: boolean;
+
+  /** @internal Parent Mastra instance for custom gateway model resolution. */
+  mastra?: Mastra;
 }
 
 /**

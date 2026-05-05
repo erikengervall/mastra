@@ -72,9 +72,10 @@ type ProcessOptions = {
   publicDir: string;
 };
 
-const restartAllActiveWorkflowRuns = async ({ host, port }: { host: string; port: number }) => {
+const restartAllActiveWorkflowRuns = async ({ host, port, https }: { host: string; port: number; https?: boolean }) => {
+  const scheme = https ? 'https' : 'http';
   try {
-    await fetch(`http://${host}:${port}/__restart-active-workflow-runs`, {
+    await fetch(`${scheme}://${host}:${port}/__restart-active-workflow-runs`, {
       method: 'POST',
     });
   } catch (error) {
@@ -82,7 +83,7 @@ const restartAllActiveWorkflowRuns = async ({ host, port }: { host: string; port
     // Retry after another second
     await new Promise(resolve => setTimeout(resolve, 1500));
     try {
-      await fetch(`http://${host}:${port}/__restart-active-workflow-runs`, {
+      await fetch(`${scheme}://${host}:${port}/__restart-active-workflow-runs`, {
         method: 'POST',
       });
     } catch {
@@ -165,11 +166,7 @@ const startServer = async (
     if (currentServerProcess.stdout) {
       currentServerProcess.stdout.on('data', (data: Buffer) => {
         const output = data.toString();
-        if (
-          !output.includes('Studio available') &&
-          !output.includes('👨‍💻') &&
-          !output.includes('Mastra API running on ')
-        ) {
+        if (!output.includes('Studio available') && !output.includes('👨‍💻') && !output.includes('Mastra API running')) {
           process.stdout.write(output);
         }
       });
@@ -178,11 +175,7 @@ const startServer = async (
     if (currentServerProcess.stderr) {
       currentServerProcess.stderr.on('data', (data: Buffer) => {
         const output = data.toString();
-        if (
-          !output.includes('Studio available') &&
-          !output.includes('👨‍💻') &&
-          !output.includes('Mastra API running on ')
-        ) {
+        if (!output.includes('Studio available') && !output.includes('👨‍💻') && !output.includes('Mastra API running')) {
           process.stderr.write(output);
         }
       });
@@ -214,11 +207,12 @@ const startServer = async (
         devLogger.ready(host, port, studioBasePath, apiPrefix, serverStartTime, startOptions.https);
         devLogger.watching();
 
-        await restartAllActiveWorkflowRuns({ host, port });
+        await restartAllActiveWorkflowRuns({ host, port, https: !!startOptions.https });
 
         // Send refresh signal
+        const scheme = startOptions.https ? 'https' : 'http';
         try {
-          await fetch(`http://${host}:${port}${studioBasePath}/__refresh`, {
+          await fetch(`${scheme}://${host}:${port}${studioBasePath}/__refresh`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -228,7 +222,7 @@ const startServer = async (
           // Retry after another second
           await new Promise(resolve => setTimeout(resolve, 1500));
           try {
-            await fetch(`http://${host}:${port}${studioBasePath}/__refresh`, {
+            await fetch(`${scheme}://${host}:${port}${studioBasePath}/__refresh`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -300,7 +294,8 @@ async function checkAndRestart(
 
   try {
     // Check if hot reload is disabled due to template installation
-    const response = await fetch(`http://${host}:${port}${studioBasePath}/__hot-reload-status`);
+    const scheme = startOptions.https ? 'https' : 'http';
+    const response = await fetch(`${scheme}://${host}:${port}${studioBasePath}/__hot-reload-status`);
     if (response.ok) {
       const status = (await response.json()) as { disabled: boolean; timestamp: string };
       if (status.disabled) {
